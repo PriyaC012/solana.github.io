@@ -1,0 +1,146 @@
+{
+  "project_name": "Solana Token Scanner",
+  "design_philosophy": {
+    "theme": "The Obsidian Terminal",
+    "archetype": "Electric & Neon",
+    "core_concept": "A high-precision, low-latency tactical HUD for crypto snipers. Not a 'dashboard', but a 'cockpit'.",
+    "key_traits": [
+      "High Contrast",
+      "Data Density",
+      "Neon Accents",
+      "Scanlines & Glitch Effects"
+    ]
+  },
+  "typography": {
+    "font_family": {
+      "headings": "Unbounded, display",
+      "body": "JetBrains Mono, monospace",
+      "ui": "Space Grotesk, sans-serif"
+    },
+    "imports": [
+      "https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+    ],
+    "usage_rules": {
+      "headings": "uppercase tracking-tighter font-bold text-white/90",
+      "subheadings": "uppercase tracking-widest text-xs font-semibold text-primary/80",
+      "data_values": "font-mono font-medium tracking-tight",
+      "labels": "text-[10px] uppercase tracking-wider text-muted-foreground"
+    }
+  },
+  "colors": {
+    "palette": {
+      "background": "#050505",
+      "surface": "#0A0A0A",
+      "surface_highlight": "#121212",
+      "primary": "#14F195",
+      "primary_glow": "rgba(20, 241, 149, 0.5)",
+      "secondary": "#9945FF",
+      "secondary_glow": "rgba(153, 69, 255, 0.5)",
+      "accent": "#00C2FF",
+      "danger": "#FF003D",
+      "warning": "#FFB800",
+      "border": "rgba(255, 255, 255, 0.1)",
+      "border_active": "rgba(20, 241, 149, 0.3)"
+    },
+    "tailwind_config_extension": {
+      "colors": {
+        "obsidian": "#050505",
+        "charcoal": "#0A0A0A",
+        "neon-green": "#14F195",
+        "neon-purple": "#9945FF",
+        "neon-cyan": "#00C2FF",
+        "neon-red": "#FF003D"
+      },
+      "backgroundImage": {
+        "grid-pattern": "linear-gradient(to right, #1a1a1a 1px, transparent 1px), linear-gradient(to bottom, #1a1a1a 1px, transparent 1px)",
+        "scan-line": "linear-gradient(to bottom, transparent 50%, rgba(20, 241, 149, 0.05) 50%)"
+      }
+    }
+  },
+  "layout": {
+    "grid_system": "Bento Grid (High Density)",
+    "container_padding": "p-4 md:p-6 lg:p-8",
+    "spacing_scale": "generous",
+    "border_radius": "rounded-none",
+    "structure": {
+      "header": "h-16 border-b border-white/10 flex items-center justify-between px-6 bg-obsidian/80 backdrop-blur-md sticky top-0 z-50",
+      "main": "min-h-screen bg-obsidian text-white relative overflow-x-hidden",
+      "scanner_grid": "grid grid-cols-1 md:grid-cols-12 gap-4"
+    }
+  },
+  "components": {
+    "global_rules": [
+      "No rounded corners on containers (Tech/Brutalism).",
+      "Use 1px borders with low opacity for structure.",
+      "Buttons should be pill-shaped or strictly rectangular with cut corners.",
+      "Glassmorphism used only for overlays/sticky elements."
+    ],
+    "TokenCard": {
+      "style": "bg-charcoal/50 border border-white/5 hover:border-neon-green/30 transition-all duration-300 relative group overflow-hidden",
+      "elements": {
+        "header": "flex justify-between items-start mb-4",
+        "ticker": "font-unbounded text-lg text-white font-bold",
+        "price": "font-mono text-neon-green text-xl",
+        "metric_row": "grid grid-cols-2 gap-2 text-sm text-gray-400 mt-2",
+        "decoration": "absolute -top-[1px] -right-[1px] w-2 h-2 bg-neon-green opacity-0 group-hover:opacity-100 transition-opacity"
+      }
+    },
+    "FilterPanel": {
+      "style": "bg-surface border-r border-white/10 h-full p-6 hidden lg:block w-80 sticky top-16",
+      "input_style": "bg-black border border-white/10 focus:border-neon-green text-sm px-3 py-2 w-full font-mono text-white outline-none"
+    },
+    "StatusBadge": {
+      "style": "inline-flex items-center px-2 py-0.5 text-xs font-mono border border-current",
+      "variants": {
+        "new": "text-neon-cyan border-neon-cyan/30 bg-neon-cyan/10",
+        "hot": "text-neon-red border-neon-red/30 bg-neon-red/10",
+        "safe": "text-neon-green border-neon-green/30 bg-neon-green/10"
+      }
+    }
+  },
+  "assets": {
+    "background_image": "https://images.unsplash.com/photo-1762279389006-43963a0cee55?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzR8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMG5lb24lMjBkYXRhJTIwbmV0d29yayUyMGRhcmslMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc3MjY4NjI4OHww&ixlib=rb-4.1.0&q=85",
+    "icons": {
+      "library": "lucide-react",
+      "style": "stroke-[1.5px] w-4 h-4"
+    }
+  },
+  "visual_enhancers": {
+    "glow_effects": "box-shadow: 0 0 20px -5px rgba(20, 241, 149, 0.15)",
+    "scanline_overlay": "pointer-events-none fixed inset-0 z-50 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjMDAwIiBmaWxsLW9wYWNpdHk9IjAuMSIvPgo8L3N2Zz4=')] opacity-20",
+    "corner_brackets": "absolute w-2 h-2 border-t border-l border-neon-green/50 top-0 left-0"
+  },
+  "motion": {
+    "rules": [
+      "Use framer-motion for list layout changes.",
+      "Pulse effects on 'Live' indicators.",
+      "Staggered entrance for list items."
+    ],
+    "animation_classes": {
+      "pulse": "animate-pulse",
+      "scan": "animate-[scan_2s_linear_infinite]"
+    }
+  },
+  "universal_guidelines": {
+    "do_not_use": [
+      "Standard Bootstrap/Material Design shadows",
+      "Rounded corners > 4px (keep it sharp)",
+      "Light mode (Strictly forbidden)",
+      "Serif fonts"
+    ],
+    "must_do": [
+      "Use data-testid for all interactive elements",
+      "Ensure contrast ratios (Neon on Black is usually good, but check grays)",
+      "Add 'copy to clipboard' micro-interactions for contract addresses"
+    ]
+  },
+  "instructions_to_main_agent": [
+    "1. Setup the tailwind.config.js with the colors and fonts provided.",
+    "2. Install 'lucide-react' and 'framer-motion'.",
+    "3. Create a 'ScannerContext' to manage the 30s auto-refresh logic.",
+    "4. Build the 'TokenCard' component first as the primary atomic unit.",
+    "5. Use the abstract neon background image with an overlay of black/80 to ensure text readability.",
+    "6. Mock the DexScreener API response initially to perfect the UI before integrating real fetch.",
+    "7. Implement the 'FilterPanel' as a sidebar on desktop and a drawer on mobile."
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "summary": {
+    "tests_passed": 11,
+    "tests_total": 11,
+    "success_rate": 100.0,
+    "timestamp": "2026-03-05T05:11:56.938502"
+  },
+  "detailed_results": [
+    {
+      "test_name": "Root API endpoint",
+      "success": true,
+      "status_code": 200,
+      "error": null,
+      "timestamp": "2026-03-05T05:11:51.702359",
+      "response_sample": {
+        "message": "Solana Token Scanner API"
+      }
+    },
+    {
+      "test_name": "Tokens scan endpoint",
+      "success": true,
+      "status_code": 200,
+      "error": null,
+      "timestamp": "2026-03-05T05:11:52.454744"
+    },
+    {
+      "test_name": "Tokens scan with parameters",
+      "success": true,
+      "status_code": 200,
+      "error": null,
+      "timestamp": "2026-03-05T05:11:53.082681"
+    },
+    {
+      "test_name": "Latest tokens endpoint",
+      "success": true,
+      "status_code": 200,
+      "error": null,
+      "timestamp": "2026-03-05T05:11:53.634188"
+    },
+    {
+      "test_name": "Create email subscription",
+      "success": true,
+      "status_code": 201,
+      "error": null,
+      "timestamp": "2026-03-05T05:11:54.197959",
+      "response_sample": {
+        "subscription_id": "e43d8c3f-7a26-46a9-aabc-da952bdca55c",
+        "email": "test_051153@example.com",
+        "is_active": true,
+        "created_at": "2026-03-05T05:11:53.949625Z"
+      }
+    },
+    {
+      "test_name": "Create first subscription",
+      "success": true,
+      "status_code": 201,
+      "error": null,
+      "timestamp": "2026-03-05T05:11:54.667384",
+      "response_sample": {
+        "subscription_id": "f8c0d828-532a-42be-9bee-1565ae0bd270",
+        "email": "duplicate_051154@example.com",
+        "is_active": true,
+        "created_at": "2026-03-05T05:11:54.422118Z"
+      }
+    },
+    {
+      "test_name": "Create duplicate subscription",
+      "success": true,
+      "status_code": 400,
+      "error": null,
+      "timestamp": "2026-03-05T05:11:55.096084",
+      "response_sample": {
+        "detail": "Email already subscribed"
+      }
+    },
+    {
+      "test_name": "Get all subscriptions",
+      "success": true,
+      "status_code": 200,
+      "error": null,
+      "timestamp": "2026-03-05T05:11:55.519861",
+      "response_sample": "[{'subscription_id': 'de10b512-482f-4567-ad98-dcd87fff2733', 'email': 'test_045826@example.com', 'is_active': True, 'created_at': '2026-03-05T04:58:26.573511Z'}, {'subscription_id': '9a7187d3-4d8f-4e6"
+    },
+    {
+      "test_name": "Unsubscribe email",
+      "success": true,
+      "status_code": 200,
+      "error": null,
+      "timestamp": "2026-03-05T05:11:55.986449",
+      "response_sample": {
+        "message": "Unsubscribed successfully"
+      }
+    },
+    {
+      "test_name": "Notification history",
+      "success": true,
+      "status_code": 200,
+      "error": null,
+      "timestamp": "2026-03-05T05:11:56.458394"
+    },
+    {
+      "test_name": "Invalid endpoint",
+      "success": true,
+      "status_code": 404,
+      "error": null,
+      "timestamp": "2026-03-05T05:11:56.937592",
+      "response_sample": {
+        "detail": "Not Found"
+      }
+    }
+  ]
+}

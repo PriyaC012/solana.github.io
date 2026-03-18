@@ -1,0 +1,98 @@
+{
+  "summary": "Comprehensive testing of pump.fun integration and liq/mcap ratio filters completed. All backend APIs and frontend features working correctly.",
+  
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  
+  "passed_tests": [
+    "GET /api/tokens/scan returns tokens with source field (pump.fun or dexscreener)",
+    "GET /api/tokens/scan correctly accepts min_liq_mcap_pct parameter",
+    "GET /api/tokens/scan correctly accepts max_liq_mcap_pct parameter",
+    "Tokens with dexId=pumpfun or pumpswap correctly marked as source=pump.fun",
+    "Pump.fun bonding curve tokens (liquidity=0, dexId=pumpfun) bypass liq/mcap filters",
+    "Combined min and max liq_mcap_pct filters work correctly together",
+    "Default values min_liq_mcap_pct=0 and max_liq_mcap_pct=100 work correctly",
+    "Frontend Settings dialog shows Liq/MCap Ratio Filter toggle",
+    "Enabling toggle reveals Min Liq as % of MCap and Max Liq as % of MCap inputs",
+    "Frontend correctly passes min_liq_mcap_pct parameter when liq_mcap filter is enabled",
+    "Frontend displays PF badge (orange) for pump.fun sourced tokens",
+    "Footer shows 'Data from DexScreener + Pump.fun'",
+    "Token table renders correctly with all columns",
+    "Auto-refresh 30s countdown timer works (verified counting down)",
+    "Filter bar shows active filters including Liq>=X%MCap when enabled",
+    "Settings save and persist to localStorage correctly",
+    "Reset to defaults button works correctly"
+  ],
+  
+  "test_report_links": [
+    "/app/backend/tests/test_pumpfun_filters.py",
+    "/app/test_reports/pytest/pytest_pumpfun_results.xml"
+  ],
+  
+  "action_items": [],
+  
+  "critical_code_review_comments": [],
+  
+  "updated_files": [
+    "/app/backend/tests/test_pumpfun_filters.py"
+  ],
+  
+  "success_rate": {
+    "backend": "100% (8/8 tests passed)",
+    "frontend": "100% (all features working)"
+  },
+  
+  "seed_data_creation": "None - used live DexScreener API data",
+  
+  "test_credentials": {
+    "telegram_bot_token": "8552556687:AAEzN1_ecZyegryUjIv81FOJMyB2iJ8jTBo",
+    "telegram_chat_id": "1772711535"
+  },
+  
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  
+  "context_for_next_testing_agent": "Pump.fun integration and liq/mcap filters fully tested. Backend returns tokens with source field (pump.fun or dexscreener). Tokens with dexId=pumpfun or pumpswap get source=pump.fun. Bonding curve tokens (dexId=pumpfun with 0 liquidity) bypass liq/mcap ratio filters. Frontend has Liq/MCap Ratio Filter toggle that reveals min/max percentage inputs when enabled. PF badge (orange) shown next to pump.fun tokens. Settings persist to localStorage.",
+  
+  "api_test_results": {
+    "GET /api/": {"status": 200, "response": {"message": "Solana Token Scanner API"}},
+    "GET /api/tokens/scan (source field)": {"status": 200, "verified": "pump.fun and dexscreener sources present"},
+    "GET /api/tokens/scan (min_liq_mcap_pct)": {"status": 200, "verified": "correctly filters by minimum ratio"},
+    "GET /api/tokens/scan (max_liq_mcap_pct)": {"status": 200, "verified": "correctly filters by maximum ratio"},
+    "GET /api/tokens/scan (bonding curve)": {"status": 200, "verified": "pumpfun bonding curve tokens bypass liq filters"}
+  },
+  
+  "frontend_test_results": {
+    "app_loads": true,
+    "live_indicator": true,
+    "countdown_timer": "30s (verified counting down)",
+    "footer_text": "Data from DexScreener + Pump.fun • Not financial advice",
+    "pf_badge": "Displayed for pump.fun tokens (orange badge)",
+    "settings_dialog": {
+      "liq_mcap_toggle": "Present and functional",
+      "min_liq_mcap_input": "Shows when toggle enabled",
+      "max_liq_mcap_input": "Shows when toggle enabled"
+    },
+    "filter_bar": "Shows Liq>=X%MCap when filter enabled",
+    "localStorage_persistence": "Filters correctly saved and restored"
+  },
+
+  "features_verified": [
+    "pump.fun integration as additional data source",
+    "min_liq_mcap_pct parameter (minimum liquidity as percentage of market cap)",
+    "max_liq_mcap_pct parameter (maximum liquidity as percentage of market cap)",
+    "Bonding curve token handling (bypass liquidity filters)",
+    "PF badge display for pump.fun tokens",
+    "Settings dialog with Liq/MCap toggle and min/max inputs",
+    "Filter bar showing active liq/mcap filter",
+    "Settings persistence via localStorage"
+  ]
+}

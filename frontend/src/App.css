@@ -1,0 +1,81 @@
+.App {
+  min-height: 100vh;
+  background-color: #0d0e14;
+}
+
+/* DexScreener-style table row hover */
+table tbody tr:hover {
+  background-color: rgba(42, 45, 62, 0.5) !important;
+}
+
+/* Price colors */
+.price-up { color: #00fc6c; }
+.price-down { color: #ff4757; }
+
+/* Button hover effects */
+button:active {
+  transform: scale(0.98);
+}
+
+/* Badge styling */
+.badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Responsive table */
+@media (max-width: 1024px) {
+  table {
+    font-size: 12px;
+  }
+  table th, table td {
+    padding: 8px !important;
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  header h1 {
+    font-size: 12px !important;
+  }
+  .filter-bar {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .filter-bar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Glow effects for important elements */
+.glow-green {
+  box-shadow: 0 0 12px rgba(0, 252, 108, 0.15);
+}
+
+.glow-purple {
+  box-shadow: 0 0 12px rgba(153, 69, 255, 0.15);
+}
+
+/* Copy success animation */
+@keyframes copy-success {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.copy-success {
+  animation: copy-success 0.3s ease;
+}
+
+/* Focus states */
+input:focus, button:focus {
+  outline: none;
+}
+
+/* Token image placeholder */
+.token-img-placeholder {
+  background: linear-gradient(135deg, #2a2d3e 0%, #1a1d2e 100%);
+}
