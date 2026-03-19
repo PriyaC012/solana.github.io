@@ -15,17 +15,21 @@ import {
 } from "@/components/ui/dialog";
 import { Toaster, toast } from "sonner";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8001";
 
+// Default filters matching the DexScreener new-pairs source URL:
+// https://dexscreener.com/new-pairs/solana?rankBy=trendingScoreH6&order=desc
+// &minLiq=10000&maxLiq=100000&minMarketCap=10000&maxMarketCap=1000000
+// &maxAge=1&min24HTxns=3000&min24HVol=300000&profile=0
 const DEFAULT_FILTERS = {
-  min_volume: 80000,
+  min_volume: 300000,
   min_market_cap: 10000,
   max_market_cap: 1000000,
   min_age_minutes: 0,
-  max_age_minutes: 60,
-  min_liquidity: 1000,
+  max_age_minutes: 1440,
+  min_liquidity: 10000,
   max_liquidity: 100000,
+  min_txns_24h: 3000,
   min_liq_mcap_pct: 0,
   max_liq_mcap_pct: 100,
   liq_mcap_enabled: false,
@@ -170,6 +174,7 @@ const FilterBar = ({ filters, onOpenSettings }) => {
     { label: "MCap", value: `${formatFilterVal(filters.min_market_cap)}-${formatFilterVal(filters.max_market_cap)}`, color: "text-purple-400" },
     { label: "Liq", value: `${formatFilterVal(filters.min_liquidity)}-${formatFilterVal(filters.max_liquidity)}`, color: "text-cyan-400" },
     { label: "Age", value: formatAgeFilter(filters.min_age_minutes, filters.max_age_minutes), color: "text-yellow-400" },
+    { label: "TXNs", value: `≥${(filters.min_txns_24h || 0).toLocaleString()}`, color: "text-orange-400" },
   ];
   if (filters.liq_mcap_enabled && (filters.min_liq_mcap_pct > 0 || filters.max_liq_mcap_pct < 100)) {
     const parts = [];
@@ -253,7 +258,9 @@ const SettingsDialog = ({ open, onOpenChange, filters, onSave }) => {
             <Input type="number" value={draft.min_volume} onChange={numChange("min_volume")} className={inputCls} data-testid="input-min-volume" />
           </FilterInput>
 
-          <div />
+          <FilterInput label="Min TXNs (24h)">
+            <Input type="number" value={draft.min_txns_24h} onChange={numChange("min_txns_24h")} className={inputCls} data-testid="input-min-txns" />
+          </FilterInput>
 
           <FilterInput label="Min Market Cap ($)">
             <Input type="number" value={draft.min_market_cap} onChange={numChange("min_market_cap")} className={inputCls} data-testid="input-min-mcap" />
@@ -384,6 +391,9 @@ function App() {
     try {
       setLoading(true);
       setError(null);
+
+      // Call backend screener endpoint which screenscrapes:
+      // https://dexscreener.com/new-pairs/solana?rankBy=trendingScoreH6&order=desc&...
       const params = {
         min_volume: f.min_volume,
         min_market_cap: f.min_market_cap,
@@ -392,15 +402,19 @@ function App() {
         max_age_minutes: f.max_age_minutes,
         min_liquidity: f.min_liquidity,
         max_liquidity: f.max_liquidity,
-        min_liq_mcap_pct: f.liq_mcap_enabled ? f.min_liq_mcap_pct : 0,
-        max_liq_mcap_pct: f.liq_mcap_enabled ? f.max_liq_mcap_pct : 100,
+        min_txns_24h: f.min_txns_24h || 0,
+        min_liq_mcap_pct: f.liq_mcap_enabled ? (f.min_liq_mcap_pct || 0) : 0,
+        max_liq_mcap_pct: f.liq_mcap_enabled ? (f.max_liq_mcap_pct || 100) : 100,
       };
-      const response = await axios.get(`${API}/tokens/scan`, { params });
-      setTokens(response.data || []);
+
+      const response = await axios.get(`${BACKEND_URL}/api/tokens/screener`, { params, timeout: 60000 });
+      const tokens = Array.isArray(response.data) ? response.data : [];
+
+      setTokens(tokens);
       setLastUpdate(new Date());
     } catch (err) {
       console.error("Error fetching tokens:", err);
-      setError("Failed to fetch tokens");
+      setError("Failed to fetch tokens from screener");
     } finally {
       setLoading(false);
     }
@@ -410,14 +424,9 @@ function App() {
     fetchTokensWithFilters(filters);
   }, [filters, fetchTokensWithFilters]);
 
-  const handleSubscribe = async (email) => {
-    try {
-      await axios.post(`${API}/subscriptions`, { email });
-      toast.success("Subscribed! You'll receive alerts for matching tokens.");
-    } catch (err) {
-      toast.error(err.response?.status === 400 ? "Email already subscribed" : "Failed to subscribe");
-      throw err;
-    }
+  const handleSubscribe = async (_email) => {
+    toast.info("Email alerts require a backend server. This feature is not available on the static deployment.");
+    throw new Error("No backend");
   };
 
   const handleSort = (key) => {
@@ -549,7 +558,7 @@ function App() {
         </div>
 
         <div className="mt-6 flex items-center justify-between text-xs text-gray-600">
-          <p>Data from DexScreener API • Not financial advice</p>
+          <p>Data scraped from DexScreener New Pairs • Not financial advice</p>
           <div className="flex items-center gap-4">
             <a href="https://dexscreener.com/solana" target="_blank" rel="noopener noreferrer" className="hover:text-[#00fc6c] transition-colors">DexScreener</a>
             <a href="https://solscan.io" target="_blank" rel="noopener noreferrer" className="hover:text-purple-400 transition-colors">Solscan</a>

@@ -21,6 +21,10 @@ load_dotenv(ROOT_DIR / '.env')
 _holder_cache = {}  # {token_address: {"data": {...}, "ts": timestamp}}
 HOLDER_CACHE_TTL = 300  # 5 minutes
 
+# In-memory cache for screener results (30 second TTL)
+_screener_cache = {"data": [], "ts": 0.0}
+SCREENER_CACHE_TTL = 30  # seconds
+
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -96,15 +100,16 @@ class EmailSubscriptionCreate(BaseModel):
     email: EmailStr
 
 class ScannerCriteria(BaseModel):
-    min_volume: float = 80000
+    min_volume: float = 300000
     min_market_cap: float = 10000
     max_market_cap: float = 1000000
     min_age_minutes: int = 0
-    max_age_minutes: int = 60
-    min_liquidity: float = 1000
+    max_age_minutes: int = 1440
+    min_liquidity: float = 10000
     max_liquidity: float = 100000
     min_liq_mcap_pct: float = 0
     max_liq_mcap_pct: float = 100
+    min_txns_24h: int = 3000
 
 class NotificationLog(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -302,6 +307,9 @@ def filter_tokens_by_criteria(pairs: List[dict], criteria: ScannerCriteria) -> L
             if criteria.min_liq_mcap_pct > 0 and market_cap > 0:
                 if (liquidity_usd / market_cap) < (criteria.min_liq_mcap_pct / 100):
                     continue
+            # 7. Min 24h transactions
+            if criteria.min_txns_24h > 0 and txns_24h < criteria.min_txns_24h:
+                continue
             
             base_token = pair.get("baseToken", {})
             info = pair.get("info", {})
@@ -1294,8 +1302,167 @@ async def get_watched_tokens():
         {"is_active": True},
         {"_id": 0}
     ).to_list(100)
-    
+
     return watched
+
+async def fetch_dexscreener_new_pairs(
+    min_liquidity: float = 10000,
+    max_liquidity: float = 100000,
+    min_market_cap: float = 10000,
+    max_market_cap: float = 1000000,
+    max_age_days: int = 1,
+    min_txns_24h: int = 3000,
+    min_volume: float = 300000,
+) -> List[dict]:
+    """
+    Fetch tokens from the DexScreener new-pairs screener.
+    Mirrors: https://dexscreener.com/new-pairs/solana?rankBy=trendingScoreH6&order=desc
+             &minLiq=10000&maxLiq=100000&minMarketCap=10000&maxMarketCap=1000000
+             &maxAge=1&min24HTxns=3000&min24HVol=300000&profile=0
+
+    Strategy:
+      1. Try DexScreener's internal screener API (io.dexscreener.com)
+      2. Fall back to the public search + token-profiles API
+    """
+    import time as _time
+
+    global _screener_cache
+    if _time.time() - _screener_cache["ts"] < SCREENER_CACHE_TTL and _screener_cache["data"]:
+        logger.info(f"Returning {len(_screener_cache['data'])} cached screener pairs")
+        return _screener_cache["data"]
+
+    browser_headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://dexscreener.com/",
+        "Origin": "https://dexscreener.com",
+    }
+
+    max_age_minutes = max_age_days * 1440
+    pairs: List[dict] = []
+
+    # --- Attempt 1: DexScreener internal screener API ---
+    # These are the known internal endpoint patterns DexScreener's SPA uses.
+    screener_urls = [
+        (
+            "https://io.dexscreener.com/dex/screener/pairs/h24/1"
+            f"?rankBy=trendingScoreH6&order=desc"
+            f"&filters[chainIds][0]=solana"
+            f"&filters[liquidity][min]={int(min_liquidity)}"
+            f"&filters[liquidity][max]={int(max_liquidity)}"
+            f"&filters[marketCap][min]={int(min_market_cap)}"
+            f"&filters[marketCap][max]={int(max_market_cap)}"
+            f"&filters[pairAge][max]={int(max_age_minutes)}"
+            f"&filters[txns][h24][min]={int(min_txns_24h)}"
+            f"&filters[volume][h24][min]={int(min_volume)}"
+        ),
+        (
+            "https://io.dexscreener.com/dex/screener/pairs/h24/1"
+            f"?rankBy=trendingScoreH6&order=desc"
+            f"&filters%5BchainIds%5D%5B0%5D=solana"
+            f"&filters%5Bliquidity%5D%5Bmin%5D={int(min_liquidity)}"
+            f"&filters%5Bliquidity%5D%5Bmax%5D={int(max_liquidity)}"
+            f"&filters%5BmarketCap%5D%5Bmin%5D={int(min_market_cap)}"
+            f"&filters%5BmarketCap%5D%5Bmax%5D={int(max_market_cap)}"
+            f"&filters%5BpairAge%5D%5Bmax%5D={int(max_age_minutes)}"
+            f"&filters%5Btxns%5D%5Bh24%5D%5Bmin%5D={int(min_txns_24h)}"
+            f"&filters%5Bvolume%5D%5Bh24%5D%5Bmin%5D={int(min_volume)}"
+        ),
+    ]
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0, headers=browser_headers, follow_redirects=True) as client:
+            for screener_url in screener_urls:
+                try:
+                    logger.info(f"Trying internal screener API: {screener_url[:80]}...")
+                    resp = await client.get(screener_url)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if isinstance(data, dict) and "pairs" in data:
+                            pairs = [p for p in data["pairs"] if isinstance(p, dict) and "pairAddress" in p]
+                            logger.info(f"Internal screener returned {len(pairs)} pairs")
+                            break
+                        elif isinstance(data, list) and data and "pairAddress" in data[0]:
+                            pairs = data
+                            logger.info(f"Internal screener returned {len(pairs)} pairs (list)")
+                            break
+                    else:
+                        logger.warning(f"Internal screener returned {resp.status_code}")
+                except Exception as e:
+                    logger.warning(f"Internal screener attempt failed: {e}")
+    except Exception as e:
+        logger.error(f"httpx client error: {e}")
+
+    # --- Fallback: public API (fetch_solana_tokens) ---
+    if not pairs:
+        logger.info("Falling back to public DexScreener API")
+        pairs = await fetch_solana_tokens()
+
+    # Deduplicate
+    seen: set = set()
+    unique: List[dict] = []
+    for p in pairs:
+        addr = p.get("pairAddress", "")
+        if addr and addr not in seen:
+            seen.add(addr)
+            unique.append(p)
+
+    logger.info(f"Fetched {len(unique)} unique pairs for screener")
+    _screener_cache["data"] = unique
+    _screener_cache["ts"] = _time.time()
+    return unique
+
+
+@api_router.get("/tokens/screener")
+async def get_screener_tokens(
+    min_volume: float = 300000,
+    min_market_cap: float = 10000,
+    max_market_cap: float = 1000000,
+    min_age_minutes: int = 0,
+    max_age_minutes: int = 1440,
+    min_liquidity: float = 10000,
+    max_liquidity: float = 100000,
+    min_txns_24h: int = 3000,
+    min_liq_mcap_pct: float = 0,
+    max_liq_mcap_pct: float = 100,
+):
+    """
+    Screenscrape DexScreener new-pairs/solana page and return filtered tokens.
+    Source URL: https://dexscreener.com/new-pairs/solana?rankBy=trendingScoreH6&...
+    """
+    # Convert max_age_minutes to days for the URL (round up to nearest day, min 1)
+    max_age_days = max(1, (max_age_minutes + 1439) // 1440)
+
+    pairs = await fetch_dexscreener_new_pairs(
+        min_liquidity=min_liquidity,
+        max_liquidity=max_liquidity,
+        min_market_cap=min_market_cap,
+        max_market_cap=max_market_cap,
+        max_age_days=max_age_days,
+        min_txns_24h=min_txns_24h,
+        min_volume=min_volume,
+    )
+
+    criteria = ScannerCriteria(
+        min_volume=min_volume,
+        min_market_cap=min_market_cap,
+        max_market_cap=max_market_cap,
+        min_age_minutes=min_age_minutes,
+        max_age_minutes=max_age_minutes,
+        min_liquidity=min_liquidity,
+        max_liquidity=max_liquidity,
+        min_liq_mcap_pct=min_liq_mcap_pct,
+        max_liq_mcap_pct=max_liq_mcap_pct,
+        min_txns_24h=min_txns_24h,
+    )
+
+    filtered = filter_tokens_by_criteria(pairs, criteria)
+    return [t.model_dump() for t in filtered]
 
 # Include the router
 app.include_router(api_router)
