@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/solana.github.io/static/css/main.dff2bc48.css",
-    "main.js": "/solana.github.io/static/js/main.fa99e2b3.js",
+    "main.css": "/solana.github.io/static/css/main.e83f81e3.css",
+    "main.js": "/solana.github.io/static/js/main.c2689ee2.js",
     "index.html": "/solana.github.io/index.html",
-    "main.dff2bc48.css.map": "/solana.github.io/static/css/main.dff2bc48.css.map",
-    "main.fa99e2b3.js.map": "/solana.github.io/static/js/main.fa99e2b3.js.map"
+    "main.e83f81e3.css.map": "/solana.github.io/static/css/main.e83f81e3.css.map",
+    "main.c2689ee2.js.map": "/solana.github.io/static/js/main.c2689ee2.js.map"
   },
   "entrypoints": [
-    "static/css/main.dff2bc48.css",
-    "static/js/main.fa99e2b3.js"
+    "static/css/main.e83f81e3.css",
+    "static/js/main.c2689ee2.js"
   ]
 }
