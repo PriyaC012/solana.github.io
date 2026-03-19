@@ -23,7 +23,7 @@ HOLDER_CACHE_TTL = 300  # 5 minutes
 
 # In-memory cache for screener results (30 second TTL)
 _screener_cache = {"data": [], "ts": 0.0}
-SCREENER_CACHE_TTL = 60  # seconds
+SCREENER_CACHE_TTL = 25  # seconds (frontend refreshes every 30s)
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
