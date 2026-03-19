@@ -23,7 +23,7 @@ HOLDER_CACHE_TTL = 300  # 5 minutes
 
 # In-memory cache for screener results (30 second TTL)
 _screener_cache = {"data": [], "ts": 0.0}
-SCREENER_CACHE_TTL = 30  # seconds
+SCREENER_CACHE_TTL = 60  # seconds
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -1315,14 +1315,16 @@ async def fetch_dexscreener_new_pairs(
     min_volume: float = 300000,
 ) -> List[dict]:
     """
-    Fetch tokens from the DexScreener new-pairs screener.
-    Mirrors: https://dexscreener.com/new-pairs/solana?rankBy=trendingScoreH6&order=desc
-             &minLiq=10000&maxLiq=100000&minMarketCap=10000&maxMarketCap=1000000
-             &maxAge=1&min24HTxns=3000&min24HVol=300000&profile=0
+    Fetch the newest Solana pairs from DexScreener using only 2 lightweight API calls:
+      1. GET /token-profiles/latest/v1  → newest token addresses (rarely rate-limited)
+      2. GET /latest/dex/tokens/{addrs} → batch pair data for those addresses
 
-    Strategy:
-      1. Try DexScreener's internal screener API (io.dexscreener.com)
-      2. Fall back to the public search + token-profiles API
+    Mirrors the DexScreener new-pairs page:
+    https://dexscreener.com/new-pairs/solana?rankBy=trendingScoreH6&order=desc
+    &minLiq=10000&maxLiq=100000&minMarketCap=10000&maxMarketCap=1000000
+    &maxAge=1&min24HTxns=3000&min24HVol=300000&profile=0
+
+    Results are cached for 60 seconds to stay well within rate limits.
     """
     import time as _time
 
@@ -1331,91 +1333,56 @@ async def fetch_dexscreener_new_pairs(
         logger.info(f"Returning {len(_screener_cache['data'])} cached screener pairs")
         return _screener_cache["data"]
 
-    browser_headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        ),
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://dexscreener.com/",
-        "Origin": "https://dexscreener.com",
-    }
-
-    max_age_minutes = max_age_days * 1440
-    pairs: List[dict] = []
-
-    # --- Attempt 1: DexScreener internal screener API ---
-    # These are the known internal endpoint patterns DexScreener's SPA uses.
-    screener_urls = [
-        (
-            "https://io.dexscreener.com/dex/screener/pairs/h24/1"
-            f"?rankBy=trendingScoreH6&order=desc"
-            f"&filters[chainIds][0]=solana"
-            f"&filters[liquidity][min]={int(min_liquidity)}"
-            f"&filters[liquidity][max]={int(max_liquidity)}"
-            f"&filters[marketCap][min]={int(min_market_cap)}"
-            f"&filters[marketCap][max]={int(max_market_cap)}"
-            f"&filters[pairAge][max]={int(max_age_minutes)}"
-            f"&filters[txns][h24][min]={int(min_txns_24h)}"
-            f"&filters[volume][h24][min]={int(min_volume)}"
-        ),
-        (
-            "https://io.dexscreener.com/dex/screener/pairs/h24/1"
-            f"?rankBy=trendingScoreH6&order=desc"
-            f"&filters%5BchainIds%5D%5B0%5D=solana"
-            f"&filters%5Bliquidity%5D%5Bmin%5D={int(min_liquidity)}"
-            f"&filters%5Bliquidity%5D%5Bmax%5D={int(max_liquidity)}"
-            f"&filters%5BmarketCap%5D%5Bmin%5D={int(min_market_cap)}"
-            f"&filters%5BmarketCap%5D%5Bmax%5D={int(max_market_cap)}"
-            f"&filters%5BpairAge%5D%5Bmax%5D={int(max_age_minutes)}"
-            f"&filters%5Btxns%5D%5Bh24%5D%5Bmin%5D={int(min_txns_24h)}"
-            f"&filters%5Bvolume%5D%5Bh24%5D%5Bmin%5D={int(min_volume)}"
-        ),
-    ]
+    all_pairs: List[dict] = []
 
     try:
-        async with httpx.AsyncClient(timeout=20.0, headers=browser_headers, follow_redirects=True) as client:
-            for screener_url in screener_urls:
-                try:
-                    logger.info(f"Trying internal screener API: {screener_url[:80]}...")
-                    resp = await client.get(screener_url)
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        if isinstance(data, dict) and "pairs" in data:
-                            pairs = [p for p in data["pairs"] if isinstance(p, dict) and "pairAddress" in p]
-                            logger.info(f"Internal screener returned {len(pairs)} pairs")
-                            break
-                        elif isinstance(data, list) and data and "pairAddress" in data[0]:
-                            pairs = data
-                            logger.info(f"Internal screener returned {len(pairs)} pairs (list)")
-                            break
-                    else:
-                        logger.warning(f"Internal screener returned {resp.status_code}")
-                except Exception as e:
-                    logger.warning(f"Internal screener attempt failed: {e}")
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+
+            # ── Step 1: get newest Solana token addresses from profiles endpoint ──
+            resp = await client.get("https://api.dexscreener.com/token-profiles/latest/v1")
+            if resp.status_code != 200:
+                logger.warning(f"token-profiles returned {resp.status_code}")
+                resp = None
+            else:
+                profiles = resp.json() if resp else []
+                solana_addrs = [
+                    p["tokenAddress"]
+                    for p in (profiles if isinstance(profiles, list) else [])
+                    if p.get("chainId") == "solana" and p.get("tokenAddress")
+                ]
+                logger.info(f"Got {len(solana_addrs)} solana addresses from profiles")
+
+                # ── Step 2: batch pair lookup (max 30 per call, do up to 2 batches) ──
+                seen_addrs: set = set()
+                for batch_start in range(0, min(len(solana_addrs), 60), 30):
+                    batch = solana_addrs[batch_start:batch_start + 30]
+                    await asyncio.sleep(1)  # small pause between batches
+                    try:
+                        r2 = await client.get(
+                            f"https://api.dexscreener.com/latest/dex/tokens/{','.join(batch)}"
+                        )
+                        if r2.status_code == 200:
+                            data = r2.json()
+                            for p in data.get("pairs", []):
+                                if (
+                                    isinstance(p, dict)
+                                    and p.get("chainId") == "solana"
+                                    and p.get("pairAddress") not in seen_addrs
+                                ):
+                                    seen_addrs.add(p["pairAddress"])
+                                    all_pairs.append(p)
+                        else:
+                            logger.warning(f"tokens batch returned {r2.status_code}")
+                    except Exception as e:
+                        logger.warning(f"Batch lookup error: {e}")
+
     except Exception as e:
-        logger.error(f"httpx client error: {e}")
+        logger.error(f"fetch_dexscreener_new_pairs error: {e}")
 
-    # --- Fallback: public API (fetch_solana_tokens) ---
-    if not pairs:
-        logger.info("Falling back to public DexScreener API")
-        pairs = await fetch_solana_tokens()
-
-    # Deduplicate
-    seen: set = set()
-    unique: List[dict] = []
-    for p in pairs:
-        addr = p.get("pairAddress", "")
-        if addr and addr not in seen:
-            seen.add(addr)
-            unique.append(p)
-
-    logger.info(f"Fetched {len(unique)} unique pairs for screener")
-    _screener_cache["data"] = unique
+    logger.info(f"Fetched {len(all_pairs)} unique new pairs for screener")
+    _screener_cache["data"] = all_pairs
     _screener_cache["ts"] = _time.time()
-    return unique
+    return all_pairs
 
 
 @api_router.get("/tokens/screener")
